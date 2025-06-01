@@ -230,13 +230,6 @@ if __name__ == '__main__':
     update_thread = threading.Thread(target=data_updater.background_update, daemon=True)
     update_thread.start()
     
-    # Start Flask app
-    print("=" * 50)
-    print("🛩️  MILITARY/PRIVATE FLIGHT TRACKER STARTING")
-    print("=" * 50)
-    print("📡 Connecting to OpenSky Network API...")
-    print("🔫 Tracking only military and private aircraft")
-    print("🌐 Open your browser: http://localhost:5000")
-    print("=" * 50)
+    
     
     app.run(debug=True, host='0.0.0.0', port=5000)
