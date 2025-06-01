@@ -52,7 +52,7 @@ class FlightTracker {
         styles.textContent = `
             .welcome-popup {
                 position: fixed;
-                top: 55%;
+                top: 43%;
                 left: -400px;
                 transform: translateY(-50%);
                 width: 350px;
