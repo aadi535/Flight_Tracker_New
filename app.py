@@ -87,59 +87,54 @@ class FlightDataUpdater:
         )
 
     def fetch_flight_data(self):
-        """Fetch live flight data from OpenSky Network API with military/private filtering"""
-        global last_api_call, demo_mode
+    global last_api_call, demo_mode
+    current_time = time.time()
+    
+    if current_time - last_api_call < api_call_interval:
+        print(f"Rate limiting: {api_call_interval - (current_time - last_api_call):.0f}s remaining")
+        if demo_mode:
+            return self.get_demo_flights()
+        return []
+    
+    try:
+        print("Fetching live flight data...")
+        headers = {'User-Agent': 'FlightTracker/1.0 (Educational Purpose)'}
+        response = requests.get(self.api_url, headers=headers, timeout=15)
+        last_api_call = current_time
         
-        current_time = time.time()
-        
-        # Check rate limiting
-        if current_time - last_api_call < api_call_interval:
-            print(f"Rate limiting: {api_call_interval - (current_time - last_api_call):.0f}s remaining")
-            if demo_mode:
-                return self.get_demo_flights()
-            return []
-        
-        try:
-            print("Fetching live flight data...")
-            headers = {'User-Agent': 'FlightTracker/1.0 (Educational Purpose)'}
-            response = requests.get(self.api_url, headers=headers, timeout=15)
-            last_api_call = current_time
+        if response.status_code == 200:
+            data = response.json()
+            flights = []
             
-            if response.status_code == 200:
-                data = response.json()
-                flights = []
-                
-                if data and 'states' in data and data['states']:
-                    for state in data['states']:
-                        if state[5] and state[6]:  # Check if lat/lon exist
-                            callsign = state[1].strip() if state[1] else 'N/A'
-                            
-                            # Only include military/private flights
-                            if not self.is_military_private(callsign):
-                                continue
-                                
-                            flight_type = "military" if str(callsign).startswith(("AF", "NAVY", "ARMY", "MARINE", "CG", "PAT")) else "private"
-                            
-                            flight = {
-                                'icao24': state[0],
-                                'callsign': callsign,
-                                'origin_country': state[2],
-                                'destination_country': 'N/A',  # OpenSky doesn't provide destination
-                                'longitude': state[5],
-                                'latitude': state[6],
-                                'altitude': state[7] if state[7] else 0,
-                                'velocity': state[9] if state[9] else 0,
-                                'heading': state[10] if state[10] else 0,
-                                'last_contact': datetime.fromtimestamp(state[4]).strftime('%H:%M:%S') if state[4] else 'N/A',
-                                'is_european': state[2] in ['United Kingdom', 'France', 'Germany', 'Italy', 'Spain'],
-                                'flight_type': flight_type
-                            }
-                            flights.append(flight)
-                
-                self.retry_count = 0
-                demo_mode = False
-                print(f"Successfully fetched {len(flights)} military/private flights")
-                return flights
+            if data and 'states' in data and data['states']:
+                print(f"Total flights received from API: {len(data['states'])}")
+                for state in data['states']:
+                    if state[5] and state[6]:  # Check if lat/lon exist
+                        callsign = state[1].strip() if state[1] else 'N/A'
+                        if not self.is_military_private(callsign):
+                            continue
+                        flight_type = "military" if str(callsign).startswith(("AF", "NAVY", "ARMY", "MARINE", "CG", "PAT")) else "private"
+                        flight = {
+                            'icao24': state[0],
+                            'callsign': callsign,
+                            'origin_country': state[2],
+                            'destination_country': 'N/A',
+                            'longitude': state[5],
+                            'latitude': state[6],
+                            'altitude': state[7] if state[7] else 0,
+                            'velocity': state[9] if state[9] else 0,
+                            'heading': state[10] if state[10] else 0,
+                            'last_contact': datetime.fromtimestamp(state[4]).strftime('%H:%M:%S') if state[4] else 'N/A',
+                            'is_european': state[2] in ['United Kingdom', 'France', 'Germany', 'Italy', 'Spain'],
+                            'flight_type': flight_type
+                        }
+                        flights.append(flight)
+            
+            print(f"Filtered military/private flights: {len(flights)}")
+            self.retry_count = 0
+            demo_mode = False
+            return flights
+        # ... rest of the method remains unchanged
                 
             elif response.status_code == 429:
                 print("API Rate Limited (429) - Switching to demo mode")
